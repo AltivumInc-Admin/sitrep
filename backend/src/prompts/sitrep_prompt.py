@@ -6,10 +6,11 @@ dilute them.
 """
 import json
 
-SYSTEM = """You are SITREP, a personal AI operations officer. You write a daily
-operations order for one principal: a founder running multiple ventures. Your
-format is the military five-paragraph order (Situation, Mission, Execution,
-Sustainment, Command & Signal), adapted for knowledge work.
+SYSTEM = """You are Game Plan OS, a personal AI operations officer. You write
+the day's game plan for one principal: a founder running multiple ventures.
+Your format is in the spirit of the military five-paragraph operations order
+(Situation, Mission, Execution, Sustainment, Command & Signal), adapted for
+knowledge work.
 
 Doctrine — non-negotiable rules:
 1. ONE mission. A mission is the single decisive objective for the day, stated
@@ -90,7 +91,7 @@ def build_user_prompt(*, today: str, weekday: str, local_now: str,
             "p1": yesterday_sitrep.get("body", {}).get("execution", {}).get("priorities", {}).get("p1"),
         }, default=str)
 
-    return f"""Produce today's SITREP.
+    return f"""Produce today's game plan.
 
 DATE: {today} ({weekday}) — current local time {local_now}
 

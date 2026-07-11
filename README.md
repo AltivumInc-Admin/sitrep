@@ -1,25 +1,33 @@
-# SITREP — An AI Operations Officer That Plans Your Day Like a Mission
+# Game Plan OS — An AI That Plans Your Day Like a Mission
 
-Every morning at 0530, SITREP reads your open tasks, your learned preferences,
-and your recent evening debriefs — and issues a military five-paragraph daily
-operations order: **Situation, Mission, Execution, Sustainment, Command &
-Signal.** One decisive mission. Explicit drops. Never more than 70% of your
-hours scheduled. Every evening it debriefs you with three questions about the
-day's actual order, runs an after-action review, and persists what it learned
-about how you really work — so tomorrow's order is smarter than today's.
+Every morning at 0530, Game Plan OS reads your open tasks, your learned
+preferences, and your recent evening debriefs — and writes the day's game
+plan, in the spirit of the military five-paragraph operations order:
+**Situation, Mission, Execution, Sustainment, Command & Signal.** One decisive
+mission. Explicit drops. Never more than 70% of your hours scheduled. Every
+evening it debriefs you with three questions about how the day actually went,
+runs an after-action review, and persists what it learned about how you really
+work — so tomorrow's plan is smarter than today's.
 
 Built for the AWS Builder Center **Build a Productivity App Weekend Challenge**
 (July 10–13, 2026).
 
-## Why an operations order instead of a to-do list
+## Why a game plan instead of a to-do list
 
-A to-do list is inventory. An operations order is a decision. The five-paragraph
-format has survived a century of contact with reality because it forces three
+A to-do list is inventory. A plan is a decision. The military five-paragraph
+order has survived a century of contact with reality because it forces three
 things most productivity tools politely avoid: a single mission (not seven
 priorities), explicit resource allocation (time blocks with intent, not hopes),
 and a named reserve (unscheduled time, because friction always comes). The
 evening debrief closes the loop — the after-action review is where the agent
 earns the word "agent."
+
+**A note on the name.** This project started life as "SITREP" — until a
+night's sleep surfaced the doctrinal bug: the morning artifact is an *order*
+(an OPORD — a decision about the future), while a SITREP is a *report* on the
+current situation. So the product became Game Plan OS, and the term SITREP now
+belongs where it is actually correct: the evening debrief, which really is an
+end-of-day situation report. The naming bug never shipped; the format did.
 
 ## Architecture
 
@@ -27,7 +35,7 @@ earns the word "agent."
 Brain dump ──▶ API GW ──▶ Lambda ──▶ Nova Lite (triage) ──▶ DynamoDB
                                                               │
 EventBridge Scheduler (0530 CT) ──▶ Lambda ──▶ Nova Pro ◀─────┤
-                                        │   (5-para order)    │
+                                        │   (5-para plan)     │
                                         ├──▶ SES (email)      │
                                         └──▶ DynamoDB ◀───────┘
 Evening debrief ──▶ Lambda ──▶ Nova Pro (after-action) ──▶ preferences
@@ -38,7 +46,7 @@ Full diagram: `article/architecture.mmd`.
 
 | Layer | Service |
 |---|---|
-| Reasoning | Amazon Bedrock — Nova Pro (order + after-action), Nova Lite (triage) |
+| Reasoning | Amazon Bedrock — Nova Pro (plan + after-action), Nova Lite (triage) |
 | Compute | AWS Lambda (Python 3.13) |
 | API | Amazon API Gateway (HTTP API) |
 | Data | Amazon DynamoDB (single table) |
@@ -70,12 +78,16 @@ template.yaml              SAM: 2 Lambdas, DynamoDB, HTTP API, Scheduler
 backend/src/
   common/                  config, bedrock wrapper, DynamoDB layer, orchestration
   handlers/                api.py (router), scheduled_sitrep.py (0530 cron)
-  prompts/                 the actual product: sitrep, triage, debrief prompts
-frontend/                  React + Vite, three views: Brief / Tasks / Debrief
+  prompts/                 the actual product: game plan, triage, debrief prompts
+frontend/                  React + Vite console: Game Plan / Tasks / Debrief
 article/                   Builder Center article draft + architecture diagram
 docs/                      deployment, Phase-2 AgentCore plan, compliance checklist
 CLAUDE.md                  operating brief for the coding agent
 ```
+
+Internal identifiers (API routes like `/sitrep/*`, DynamoDB key prefixes, the
+CloudFormation stack name) keep the original working name; they are invisible
+to users and renaming them buys nothing but risk.
 
 ## Phase 2 — AgentCore
 

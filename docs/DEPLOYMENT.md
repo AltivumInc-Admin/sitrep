@@ -63,9 +63,9 @@ curl -s -X POST $API/debrief -H "x-sitrep-key: $KEY" -H "content-type: applicati
   -d '{"answers":{"q1":"shipped the memo but it took all morning","q2":"the 0900 block slipped an hour - a call ran long","q3":"i keep underestimating writing tasks"}}'
 ```
 
-Expected: triage returns discrete scored tasks; the SITREP has ONE mission,
+Expected: triage returns discrete scored tasks; the game plan has ONE mission,
 time blocks, explicit drops; the debrief returns an honest after-action with
-candidate preferences. **If the SITREP reads like a generic to-do list, stop
+candidate preferences. **If the plan reads like a generic to-do list, stop
 and tune `backend/src/prompts/sitrep_prompt.py` — that hour matters more than
 any infra work.**
 
@@ -77,7 +77,7 @@ aws lambda invoke --function-name $(aws cloudformation describe-stack-resources 
   --output text) --payload '{}' /tmp/out.json && cat /tmp/out.json
 ```
 
-Check your inbox for the SITREP email.
+Check your inbox for the game plan email.
 
 ## 6. Frontend on Amplify Hosting
 
@@ -100,7 +100,7 @@ dump → tasks → generate → brief → debrief.
 ## 7. Artifacts for the article (do these while everything is fresh)
 
 - Screenshot: the Brief view with a real order (redact anything sensitive)
-- Screenshot: the SITREP email
+- Screenshot: the morning email
 - Screenshot: DynamoDB items (PK/SK view showing TASK/SITREP/DEBRIEF/PREF)
 - Screenshot: CloudWatch log of one generation (shows the Converse call)
 - Optional 60-second screen recording of the full loop

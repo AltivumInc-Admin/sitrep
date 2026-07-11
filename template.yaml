@@ -1,9 +1,10 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  SITREP — an AI operations officer that turns task chaos into a daily
-  five-paragraph operations order, and debriefs you every evening so
-  tomorrow's order is smarter. Weekend Productivity Challenge entry.
+  Game Plan OS - an AI operations officer that turns task chaos into a
+  one-page daily game plan, in the spirit of the military five-paragraph
+  operations order, and debriefs you every evening so tomorrow's plan is
+  smarter. Weekend Productivity Challenge entry.
 
 Parameters:
   NotifyEmail:
@@ -81,7 +82,7 @@ Resources:
   ApiFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Description: SITREP REST API — tasks, on-demand brief generation, debrief loop.
+      Description: Game Plan OS REST API - tasks, on-demand plan generation, debrief loop.
       CodeUri: backend/src/
       Handler: handlers.api.handler
       Events:
@@ -108,7 +109,7 @@ Resources:
   MorningBriefFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Description: Scheduled morning SITREP — generates the day's operations order and emails it.
+      Description: Scheduled morning game plan - generates the day's plan and emails it.
       CodeUri: backend/src/
       Handler: handlers.scheduled_sitrep.handler
       Timeout: 180
@@ -118,7 +119,7 @@ Resources:
           Properties:
             ScheduleExpression: !Sub 'cron(${SitrepHourLocal} * * ? *)'
             ScheduleExpressionTimezone: !Ref TimeZone
-            Description: Daily 0530 local — generate and deliver the SITREP.
+            Description: Daily 0530 local - generate and deliver the morning game plan.
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref SitrepTable

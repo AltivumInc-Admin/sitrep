@@ -1,6 +1,5 @@
-"""Core orchestration: generate SITREP, triage dumps, process debriefs, email."""
+"""Core orchestration: generate the game plan, triage dumps, process debriefs, email."""
 import datetime
-import json
 from zoneinfo import ZoneInfo
 
 import boto3
@@ -93,7 +92,8 @@ def render_email_text(body: dict) -> str:
     ex = body.get("execution", {})
     cs = body.get("command_signal", {})
     lines = [
-        f"SITREP {body.get('date')}",
+        f"GAME PLAN {body.get('date')}",
+        "(in the spirit of a five-paragraph operations order)",
         "",
         "1. SITUATION",
         body.get("situation", {}).get("overview", ""),
@@ -135,7 +135,7 @@ def send_sitrep_email(body: dict) -> None:
         Source=config.NOTIFY_EMAIL,
         Destination={"ToAddresses": [config.NOTIFY_EMAIL]},
         Message={
-            "Subject": {"Data": f"SITREP {body.get('date')} — {body.get('mission', {}).get('statement', '')[:80]}"},
+            "Subject": {"Data": f"Game Plan {body.get('date')} — {body.get('mission', {}).get('statement', '')[:80]}"},
             "Body": {"Text": {"Data": render_email_text(body)}},
         },
     )

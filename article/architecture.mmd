@@ -2,7 +2,7 @@
 flowchart TB
     subgraph User["Christian (single principal)"]
         UI["React + Vite app<br/>AWS Amplify Hosting"]
-        EMAIL["Inbox<br/>0530 SITREP email"]
+        EMAIL["Inbox<br/>0530 game plan email"]
     end
 
     subgraph AWS["AWS us-east-1"]
@@ -12,7 +12,7 @@ flowchart TB
         CRON["Lambda: morning brief"]
         subgraph Bedrock["Amazon Bedrock"]
             LITE["Nova Lite<br/>brain-dump triage"]
-            PRO["Nova Pro<br/>5-paragraph order +<br/>after-action analysis"]
+            PRO["Nova Pro<br/>5-paragraph plan +<br/>after-action analysis"]
         end
         DDB[("DynamoDB single table<br/>TASK# / SITREP# /<br/>DEBRIEF# / PREF#")]
         SES["Amazon SES"]

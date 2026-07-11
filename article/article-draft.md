@@ -1,4 +1,4 @@
-# Weekend Productivity Challenge: SITREP — An AI Operations Officer That Plans Your Day Like a Mission
+# Weekend Productivity Challenge: Game Plan OS — An AI That Plans Your Day Like a Mission
 
 <!-- Builder Center tag: #productivity -->
 <!-- Target 900–1,200 words. [TODO] blocks are yours; everything else is editable draft. -->
@@ -16,15 +16,16 @@ podcast, and a community — and like most founders, my failure mode isn't
 laziness. It's the opposite: seven "priorities," a calendar scheduled to 110%,
 and no one with the authority to tell me what to drop.
 
-So I built SITREP: a personal AI operations officer. It's not a chatbot you
-have to remember to talk to. It runs on a battle rhythm:
+So I built Game Plan OS: a personal AI operations officer. It's not a chatbot
+you have to remember to talk to. It runs on a daily rhythm:
 
 - **Throughout the day**, I brain-dump everything into one box — half-formed,
   unstructured, exactly as it arrives. A fast model triages the dump into
   discrete tasks, each scored for urgency, impact, and honest effort.
 - **Every morning at 0530**, a reasoning model reads my open tasks, my recent
   debriefs, and everything it has learned about how I actually work, and
-  issues the day's operations order in the military five-paragraph format:
+  writes the day's game plan in the spirit of the military five-paragraph
+  operations order:
   **Situation** (the terrain, what changed overnight), **Mission** (one
   sentence, one objective, measurable by end of day), **Execution**
   (time blocks with intent, priorities ranked P1–P3, and — critically — what
@@ -40,9 +41,17 @@ have to remember to talk to. It runs on a battle rhythm:
 The doctrine is opinionated by design: one mission only, never more than 70%
 of working hours scheduled (unallocated time is the reserve — friction always
 comes), and an explicit overcommitment warning when the week's load is not
-achievable. If SITREP is a term you know from NATO doctrine or from Call of
-Duty, either one works — it means the same thing: here is the situation,
-here is what we do about it.
+achievable.
+
+**About the name.** I originally called this SITREP — it's catchy, and if you
+know it from NATO doctrine or from Call of Duty it means the same thing. Then
+a night of sleep surfaced the doctrinal bug: the morning artifact is an
+*order* (an OPORD — a decision about what happens next), while a SITREP is a
+*report* on the current situation. Naming the whole app after the wrong
+document is exactly the kind of thing an after-action review is supposed to
+catch, so I renamed it Game Plan OS — plain English, welcoming to people who
+never wore a uniform — and let the term SITREP live where it is actually
+correct: the evening debrief, which really is an end-of-day situation report.
 
 ## How I Built It
 
@@ -132,7 +141,7 @@ scheduled event a day, one email a day.
 - **Repo:** [TODO: public GitHub URL]
 - **Live app:** [TODO: Amplify URL — or state "personal single-user tool; see
   the 60-second walkthrough below" and embed the video]
-- [TODO: 3–4 screenshots: the Brief view with a real order, the SITREP email,
+- [TODO: 3–4 screenshots: the game plan view with a real plan, the morning email,
   the debrief's "what the agent learned about you" panel, DynamoDB items]
 
 ---

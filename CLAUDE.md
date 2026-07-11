@@ -2,7 +2,7 @@
 
 ## Mission
 
-Ship **SITREP**, a personal AI operations officer, as a qualifying entry to the
+Ship **Game Plan OS** (formerly SITREP), a personal AI operations officer, as a qualifying entry to the
 AWS Builder Center "Build a Productivity App" Weekend Challenge. The challenge
 is **pass/fail with a first-50-submissions speed gate**. Deadline: **Sunday
 July 13, 2026, 1:00 PM PT (3:00 PM CDT)**. Target: article published **Saturday
@@ -40,17 +40,17 @@ Terms: https://builder.aws.com/content/3GJsgI65jiG5A6sJLGe5VouAZZ3/aws-builder-c
 1. `sam build && sam deploy --guided` (see docs/DEPLOYMENT.md — SES identity
    verification FIRST, it has a manual email-click step).
 2. Smoke-test with curl (health → dump → tasks → sitrep/generate → debrief).
-   Iterate on prompts in `backend/src/prompts/` until the SITREP output has
+   Iterate on prompts in `backend/src/prompts/` until the game plan output has
    teeth — decisive mission, real drops, honest overcommitment warnings.
    This is the highest-leverage hour of the project.
 3. Frontend: `npm i && npm run dev` against the deployed API, then build and
    deploy to Amplify Hosting.
-4. Seed realistic tasks, generate a real SITREP, take screenshots (dashboard,
+4. Seed realistic tasks, generate a real game plan, take screenshots (dashboard,
    email, DynamoDB console, one CloudWatch trace).
 5. Fill the [TODO] blocks in `article/article-draft.md`, render
    `article/architecture.mmd` to PNG, publish on Builder Center with tag
    `#productivity` and title starting exactly:
-   `Weekend Productivity Challenge: SITREP`.
+   `Weekend Productivity Challenge: Game Plan OS`.
 6. Run docs/COMPLIANCE_CHECKLIST.md line by line BEFORE publishing.
 
 ## Conventions and guardrails
@@ -74,4 +74,4 @@ Terms: https://builder.aws.com/content/3GJsgI65jiG5A6sJLGe5VouAZZ3/aws-builder-c
 1. Cut Phase 2 AgentCore migration (article still qualifies without it).
 2. Cut the evening debrief UI — keep the API + demo it with curl screenshots.
 3. Cut Amplify hosting — public repo + screenshots + 60-second video qualifies.
-4. NEVER cut: SITREP generation, the article, the compliance checklist.
+4. NEVER cut: game plan generation, the article, the compliance checklist.

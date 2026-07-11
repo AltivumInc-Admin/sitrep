@@ -5,7 +5,7 @@ The challenge is pass/fail. One miss forfeits the jacket regardless of speed.
 ## Gate 1 — Completeness
 
 - [ ] Article is **500+ words** (count it; aim 900–1,200)
-- [ ] Title starts exactly: **"Weekend Productivity Challenge: SITREP — …"**
+- [ ] Title starts exactly: **"Weekend Productivity Challenge: Game Plan OS — …"**
 - [ ] Tag **#productivity** added on Builder Center
 - [ ] Section: Vision & What the App Does (problem, purpose, user-perspective walkthrough)
 - [ ] Section: How You Built It (process, key decisions, challenges + how overcome)
@@ -18,7 +18,7 @@ The challenge is pass/fail. One miss forfeits the jacket regardless of speed.
 
 - [ ] It is an **AI-powered** productivity tool (Bedrock Nova calls are core, not garnish)
 - [ ] Working functionality demonstrated: screenshots AND (live URL OR 60-sec video)
-- [ ] The demo shows the full loop: dump → triage → SITREP → debrief → learned preference
+- [ ] The demo shows the full loop: dump → triage → game plan → debrief → learned preference
 
 ## Gate 3 — AWS Service Usage
 
