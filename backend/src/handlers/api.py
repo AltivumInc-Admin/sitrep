@@ -47,6 +47,12 @@ def handler(event, _context):
     http = event.get("requestContext", {}).get("http", {})
     method = http.get("method", "")
     path = event.get("rawPath", "").rstrip("/")
+    # The ANY /{proxy+} route catches preflight OPTIONS before API Gateway's
+    # automatic CORS response can. Answer 200 pre-auth (preflights carry no
+    # custom headers); the HTTP API's CorsConfiguration appends the
+    # access-control-* headers for allowed origins.
+    if method == "OPTIONS":
+        return _resp(200, {})
     if path == "/health":
         return _resp(200, {"ok": True})
 
