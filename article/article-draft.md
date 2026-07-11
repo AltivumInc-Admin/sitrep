@@ -1,7 +1,8 @@
 # Weekend Productivity Challenge: Game Plan OS — An AI That Plans Your Day Like a Mission
 
 <!-- Builder Center tag: #productivity -->
-<!-- Target 900–1,200 words. [TODO] blocks are yours; everything else is editable draft. -->
+<!-- Publish-ready draft; tweak voice anywhere. Screenshots: you upload 00-07
+     from article/screenshots/ (plus inbox email / DynamoDB shots if desired). -->
 
 ## Vision & What the App Does
 
@@ -63,11 +64,13 @@ correct: the evening debrief, which really is an end-of-day situation report.
 
 ## How I Built It
 
-I started Friday with the backend: SAM stack up (Lambda, DynamoDB, API
-Gateway, EventBridge Scheduler, SES), and the first real game plan generated
-within the hour — one mission, five time blocks, two tasks explicitly dropped
-with reasons. Saturday went to the learning loop, the frontend console, and
-the rename. [TODO: adjust timeline details to taste.]
+The build ran Friday night to Saturday evening. Friday night went to the
+backend: SAM stack up (Lambda, DynamoDB, API Gateway, EventBridge Scheduler,
+SES), and the first real game plan generated within the hour — one mission,
+five time blocks, two tasks explicitly dropped with reasons. Saturday went
+to the learning loop, the console and its landing page, the rename, making
+the plan answerable mid-day, and the agent layer — with this article closing
+out the evening.
 
 The build ran backend-first, and the key decisions were mostly about what
 *not* to build:
@@ -169,9 +172,17 @@ scheduled event a day, one email a day.
 - **An opinionated prompt beats a capable model with a polite one.** The same
   model, same context, produces either a summary or an order depending
   entirely on whether the doctrine rules give it permission to be decisive.
-- [TODO if Phase 2 attempted: one honest paragraph on AgentCore harness —
-  what the config-defined agent replaced, what broke, whether Memory's
-  preference extraction beat the hand-rolled filter.]
+- **The agent layer was thin, because the verbs already existed.** I expected
+  wiring a conversational agent (Strands Agents SDK in a Lambda, Telegram as
+  the channel) to be the hardest lift of the weekend. It was the easiest —
+  because every tool the agent needed already existed as a product verb with
+  an addressable API: list tasks, close one, mark a block done, replan the
+  rest of the day. The lesson generalizes: make the product answerable first,
+  and an agent is just a new doorway into the same room. The genuine surprise
+  was channel economics, not code — a Telegram bot is live in minutes and can
+  message you first, while US SMS is a weeks-long carrier-registration
+  project. Channel choice turned out to be a regulatory decision, not a
+  technical one.
 
 ## Link to App & Repo
 
@@ -187,9 +198,7 @@ scheduled event a day, one email a day.
   dawn-terrain hero), 01 game plan hero (timeline + replan bar), 02 full
   five-section plan with block actions, 03 task pool with triage scores and
   inline editing, 04 evening debrief questions, 05 after-action review with
-  learned preferences, 06 the Memory tab, 07 the light theme. [TODO:
-  optionally add the morning email from your inbox and a DynamoDB console
-  shot, then upload all to Builder Center.]
+  learned preferences, 06 the Memory tab, 07 the light theme.
 
 ---
 
