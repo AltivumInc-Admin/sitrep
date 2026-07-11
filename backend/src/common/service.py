@@ -22,7 +22,8 @@ def triage_dump(dump: str) -> list[dict]:
     result = bedrock.converse_json(
         config.NOVA_LITE_MODEL_ID,
         triage_prompt.SYSTEM,
-        triage_prompt.build_user_prompt(dump, now.date().isoformat(), known_projects),
+        triage_prompt.build_user_prompt(
+            dump, f"{now.date().isoformat()} ({now.strftime('%A')})", known_projects),
         max_tokens=2000, temperature=0.2)
     created = []
     for t in result.get("tasks", []):

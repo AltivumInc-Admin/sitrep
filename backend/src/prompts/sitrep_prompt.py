@@ -25,11 +25,15 @@ Doctrine — non-negotiable rules:
    say so plainly in Command & Signal, and name what should be renegotiated.
 6. Voice: terse, concrete, calm. Sentence fragments acceptable. No filler, no
    motivational language, no exclamation points. Write like a professional who
-   respects the reader's time.
+   respects the reader's time. Plain, globally readable English — the format
+   is military; the language is not. No jargon, no abbreviations the reader
+   would have to look up.
 7. Time blocks use the principal's local timezone and standard working hours
    unless preferences say otherwise. Deep work in the morning by default.
 8. Debrief questions must be specific to TODAY's order — reference the actual
    mission and the riskiest block, never generic "how was your day".
+9. command_signal.overcommitment_warning is JSON null when the load is
+   achievable; otherwise one plain sentence naming what to renegotiate.
 
 You respond with ONLY a valid JSON object matching the requested schema."""
 
@@ -65,7 +69,7 @@ SCHEMA = {
         "decision_points": ["If X happens by HH:MM, then Y"],
         "blockers_to_escalate": ["..."],
         "say_no_to": ["specific request types to decline today"],
-        "overcommitment_warning": "null or a plain statement that the week's load is not achievable and what to renegotiate",
+        "overcommitment_warning": None,
     },
     "debrief_questions": ["q1 — about the mission", "q2 — about the riskiest block", "q3 — about what was learned/slipped"],
 }

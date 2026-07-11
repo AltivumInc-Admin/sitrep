@@ -19,8 +19,12 @@ and extract durable lessons. Rules:
    "Estimates on Elo tasks run 2x long; pad them".
 4. confidence is "high" only when supported by at least two independent
    signals across debriefs. Low-confidence hunches stay out of the profile.
-5. task_updates: mark tasks the answers say were completed (done) or
-   consciously abandoned (dropped). Only include tasks you are sure about.
+5. task_updates: include a task ONLY when the answers give explicit evidence it
+   was finished ("shipped the memo" -> done) or consciously abandoned ("decided
+   to kill the podcast" -> dropped). Being scheduled in a time block is NOT
+   evidence. Partial progress ("half a draft") is NOT done. When in doubt,
+   omit the task — a wrongly closed task disappears from every future plan.
+6. Write in plain, globally readable English. No military jargon.
 Respond with ONLY valid JSON."""
 
 

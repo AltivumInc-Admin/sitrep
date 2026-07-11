@@ -18,6 +18,7 @@ Preference doc shape:
   {preferences: [{text, source, learned_at, confidence}], updated_at}
 """
 import datetime
+import decimal
 import uuid
 
 import boto3
@@ -33,13 +34,24 @@ def _now() -> str:
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
 
 
+def _clean(o):
+    """DynamoDB rejects Python floats; model JSON is full of them."""
+    if isinstance(o, float):
+        return decimal.Decimal(str(o))
+    if isinstance(o, dict):
+        return {k: _clean(v) for k, v in o.items()}
+    if isinstance(o, list):
+        return [_clean(v) for v in o]
+    return o
+
+
 # ---------- tasks ----------
 
 def put_task(task: dict) -> dict:
     task.setdefault("id", uuid.uuid4().hex[:12])
     task.setdefault("status", "open")
     task.setdefault("created_at", _now())
-    item = {"PK": _PK, "SK": f"TASK#{task['id']}", **task}
+    item = _clean({"PK": _PK, "SK": f"TASK#{task['id']}", **task})
     _table.put_item(Item=item)
     return task
 
@@ -61,7 +73,7 @@ def update_task(task_id: str, fields: dict) -> None:
         return
     expr = ", ".join(f"#f{i} = :v{i}" for i in range(len(allowed)))
     names = {f"#f{i}": k for i, k in enumerate(allowed)}
-    values = {f":v{i}": v for i, v in enumerate(allowed.values())}
+    values = {f":v{i}": _clean(v) for i, v in enumerate(allowed.values())}
     _table.update_item(
         Key={"PK": _PK, "SK": f"TASK#{task_id}"},
         UpdateExpression=f"SET {expr}",
@@ -73,8 +85,8 @@ def update_task(task_id: str, fields: dict) -> None:
 # ---------- sitreps ----------
 
 def put_sitrep(date: str, body: dict) -> None:
-    _table.put_item(Item={"PK": _PK, "SK": f"SITREP#{date}", "date": date,
-                          "body": body, "created_at": _now()})
+    _table.put_item(Item=_clean({"PK": _PK, "SK": f"SITREP#{date}", "date": date,
+                                 "body": body, "created_at": _now()}))
 
 
 def get_sitrep(date: str) -> dict | None:
@@ -93,8 +105,8 @@ def latest_sitrep() -> dict | None:
 # ---------- debriefs ----------
 
 def put_debrief(date: str, answers: dict, analysis: dict) -> None:
-    _table.put_item(Item={"PK": _PK, "SK": f"DEBRIEF#{date}", "date": date,
-                          "answers": answers, "analysis": analysis, "created_at": _now()})
+    _table.put_item(Item=_clean({"PK": _PK, "SK": f"DEBRIEF#{date}", "date": date,
+                                 "answers": answers, "analysis": analysis, "created_at": _now()}))
 
 
 def recent_debriefs(limit: int = 5) -> list[dict]:
@@ -120,5 +132,5 @@ def append_preferences(new_prefs: list[dict]) -> None:
             prefs.append(p)
     # keep the most recent 40 to bound prompt size
     prefs = prefs[-40:]
-    _table.put_item(Item={"PK": _PK, "SK": "PREF#profile",
-                          "preferences": prefs, "updated_at": _now()})
+    _table.put_item(Item=_clean({"PK": _PK, "SK": "PREF#profile",
+                                 "preferences": prefs, "updated_at": _now()}))
