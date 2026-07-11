@@ -1,0 +1,21 @@
+# SAM
+.aws-sam/
+samconfig.toml
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.env.local
+frontend/.env.production
+
+# Misc
+.DS_Store
+*.log
+
+# TS build artifacts
+*.tsbuildinfo

@@ -1,0 +1,2 @@
+# boto3 ships in the Lambda runtime, pinned here only for local testing.
+boto3>=1.34

@@ -1,0 +1,141 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  SITREP — an AI operations officer that turns task chaos into a daily
+  five-paragraph operations order, and debriefs you every evening so
+  tomorrow's order is smarter. Weekend Productivity Challenge entry.
+
+Parameters:
+  NotifyEmail:
+    Type: String
+    Description: SES-verified email that receives the morning SITREP (also used as sender).
+  ApiKey:
+    Type: String
+    NoEcho: true
+    Description: Shared secret required in the x-sitrep-key header for all API calls.
+  NovaProModelId:
+    Type: String
+    Default: us.amazon.nova-pro-v1:0
+    Description: >
+      Bedrock model/inference-profile ID for SITREP generation and debrief analysis.
+      VERIFY the current ID before deploy: aws bedrock list-inference-profiles
+  NovaLiteModelId:
+    Type: String
+    Default: us.amazon.nova-lite-v1:0
+    Description: Bedrock model/inference-profile ID for cheap/fast task triage.
+  SitrepHourLocal:
+    Type: String
+    Default: '30 5'
+    Description: 'cron minute+hour for the morning brief in LOCAL time (default 05:30).'
+  TimeZone:
+    Type: String
+    Default: America/Chicago
+
+Globals:
+  Function:
+    Runtime: python3.13
+    Timeout: 120
+    MemorySize: 512
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref SitrepTable
+        NOTIFY_EMAIL: !Ref NotifyEmail
+        API_KEY: !Ref ApiKey
+        NOVA_PRO_MODEL_ID: !Ref NovaProModelId
+        NOVA_LITE_MODEL_ID: !Ref NovaLiteModelId
+        USER_ID: primary
+        LOCAL_TZ: !Ref TimeZone
+
+Resources:
+
+  SitrepTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+
+  SitrepHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins:
+          - '*'
+        AllowHeaders:
+          - content-type
+          - x-sitrep-key
+        AllowMethods:
+          - GET
+          - POST
+          - PATCH
+          - OPTIONS
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: SITREP REST API — tasks, on-demand brief generation, debrief loop.
+      CodeUri: backend/src/
+      Handler: handlers.api.handler
+      Events:
+        AnyRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref SitrepHttpApi
+            Path: /{proxy+}
+            Method: ANY
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SitrepTable
+        - SESCrudPolicy:
+            IdentityName: !Ref NotifyEmail
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+                - bedrock:InvokeModelWithResponseStream
+                - bedrock:Converse
+                - bedrock:ConverseStream
+              Resource: '*'
+
+  MorningBriefFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: Scheduled morning SITREP — generates the day's operations order and emails it.
+      CodeUri: backend/src/
+      Handler: handlers.scheduled_sitrep.handler
+      Timeout: 180
+      Events:
+        MorningBrief:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: !Sub 'cron(${SitrepHourLocal} * * ? *)'
+            ScheduleExpressionTimezone: !Ref TimeZone
+            Description: Daily 0530 local — generate and deliver the SITREP.
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SitrepTable
+        - SESCrudPolicy:
+            IdentityName: !Ref NotifyEmail
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+                - bedrock:InvokeModelWithResponseStream
+                - bedrock:Converse
+                - bedrock:ConverseStream
+              Resource: '*'
+
+Outputs:
+  ApiUrl:
+    Description: Base URL for the SITREP API (set as VITE_API_URL in the frontend).
+    Value: !Sub 'https://${SitrepHttpApi}.execute-api.${AWS::Region}.amazonaws.com'
+  TableName:
+    Value: !Ref SitrepTable

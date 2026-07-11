@@ -1,0 +1,31 @@
+%% Render: https://mermaid.live → export PNG at 2x for the article
+flowchart TB
+    subgraph User["Christian (single principal)"]
+        UI["React + Vite app<br/>AWS Amplify Hosting"]
+        EMAIL["Inbox<br/>0530 SITREP email"]
+    end
+
+    subgraph AWS["AWS us-east-1"]
+        APIGW["API Gateway<br/>HTTP API + shared-key auth"]
+        API["Lambda: api<br/>router / orchestration"]
+        SCHED["EventBridge Scheduler<br/>cron(30 5) America/Chicago"]
+        CRON["Lambda: morning brief"]
+        subgraph Bedrock["Amazon Bedrock"]
+            LITE["Nova Lite<br/>brain-dump triage"]
+            PRO["Nova Pro<br/>5-paragraph order +<br/>after-action analysis"]
+        end
+        DDB[("DynamoDB single table<br/>TASK# / SITREP# /<br/>DEBRIEF# / PREF#")]
+        SES["Amazon SES"]
+    end
+
+    UI -->|"dump / generate / debrief"| APIGW --> API
+    API -->|triage| LITE
+    API -->|order + AAR| PRO
+    API <--> DDB
+    SCHED --> CRON
+    CRON -->|order| PRO
+    CRON <--> DDB
+    CRON --> SES --> EMAIL
+
+    LITE -.->|"scored tasks"| DDB
+    PRO -.->|"learned preferences<br/>(high-confidence only)"| DDB
