@@ -18,6 +18,9 @@ Routes:
   GET   /preferences                          -> learned preferences, with ids
   DELETE /preferences/{id}                    -> forget one learned preference
   POST  /debrief            {answers:{q1,q2,q3}} -> evening loop; returns analysis + receipt
+  GET   /agent/chat                           -> stored agent conversation (web channel)
+  POST  /agent/chat         {message}|{reset} -> one agent turn; returns reply + receipt flags
+  POST  /agent/telegram                       -> Telegram webhook (secret-token auth, not x-sitrep-key)
   GET   /health                               -> unauthenticated liveness check
 """
 import decimal
@@ -27,7 +30,85 @@ import traceback
 
 from botocore.exceptions import ClientError
 
-from common import config, db, service
+from common import config, db, service, telegram
+
+MAX_CHAT_CHARS = 4000
+
+TELEGRAM_WELCOME = (
+    "You are connected to Game Plan OS. Text me what you finished, what came "
+    "up, or how your schedule changed, and I will update your plan - marking "
+    "tasks done, adding new ones, or replanning the rest of the day. Ask "
+    "\"what's my plan\" any time. Send /reset to start a fresh conversation.")
+
+
+def _agent_turn(channel: str, message: str) -> dict:
+    # Imported lazily: strands lives in a Lambda layer attached to this
+    # function only, and only agent routes pay its import cost.
+    from agent import runtime
+    return runtime.run_turn(channel, message)
+
+
+def _telegram_webhook(headers: dict, event: dict) -> dict:
+    """Telegram calls this; auth is the webhook secret token, not the API key.
+
+    Always ACK with 200 once authenticated - Telegram retries non-200s, and a
+    poison update must not become a retry storm against Bedrock.
+    """
+    if not (config.TELEGRAM_BOT_TOKEN and config.TELEGRAM_WEBHOOK_SECRET):
+        return _resp(404, {"error": "telegram channel not configured"})
+    supplied = headers.get("x-telegram-bot-api-secret-token", "")
+    if not hmac.compare_digest(
+            supplied.encode("utf-8", "surrogatepass"),
+            config.TELEGRAM_WEBHOOK_SECRET.encode("utf-8")):
+        return _resp(401, {"error": "bad webhook secret"})
+    try:
+        update = json.loads(event.get("body") or "{}")
+    except json.JSONDecodeError:
+        return _resp(200, {"ok": True})
+    parsed = telegram.parse_update(update)
+    if parsed is None:
+        return _resp(200, {"ok": True})
+    # Single-owner allowlist. Until claimed, reply with the chat id so the
+    # owner can set TELEGRAM_CHAT_ID; deny everyone else silently.
+    if not config.TELEGRAM_CHAT_ID:
+        print(json.dumps({"event": "telegram_unclaimed_chat",
+                          "chat_id": parsed["chat_id"]}))
+        telegram.send_message(parsed["chat_id"],
+                              "This bot serves a single owner and is not "
+                              f"claimed yet. Your chat id is {parsed['chat_id']}; "
+                              "set it as TELEGRAM_CHAT_ID to claim the bot.")
+        return _resp(200, {"ok": True})
+    if parsed["chat_id"] != config.TELEGRAM_CHAT_ID:
+        print(json.dumps({"event": "telegram_denied_chat",
+                          "chat_id": parsed["chat_id"]}))
+        return _resp(200, {"ok": True})
+    # At-most-once: record the update id before running the agent, so a
+    # Telegram retry of a slow turn cannot apply the same mutation twice.
+    update_id = parsed.get("update_id")
+    if isinstance(update_id, int):
+        if update_id <= db.get_last_update_id():
+            return _resp(200, {"ok": True, "duplicate": True})
+        db.set_last_update_id(update_id)
+    text = parsed["text"]
+    try:
+        if text.startswith("/start"):
+            telegram.send_message(parsed["chat_id"], TELEGRAM_WELCOME)
+        elif text.startswith("/reset"):
+            db.clear_chat("telegram")
+            telegram.send_message(parsed["chat_id"],
+                                  "Fresh conversation. What's the situation?")
+        else:
+            result = _agent_turn("telegram", text)
+            telegram.send_message(parsed["chat_id"], result["reply"])
+    except Exception:
+        traceback.print_exc()
+        try:
+            telegram.send_message(parsed["chat_id"],
+                                  "Something went wrong handling that. "
+                                  "Try again in a minute.")
+        except Exception:
+            traceback.print_exc()
+    return _resp(200, {"ok": True})
 
 MAX_DUMP_CHARS = 8000
 
@@ -61,6 +142,13 @@ def handler(event, _context):
         return _resp(200, {"ok": True})
 
     headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
+    # Telegram authenticates with its own webhook secret, not the API key.
+    if method == "POST" and path == "/agent/telegram":
+        try:
+            return _telegram_webhook(headers, event)
+        except Exception as exc:
+            traceback.print_exc()
+            return _resp(500, {"error": str(exc)})
     # Empty API_KEY means misconfiguration; deny everything rather than
     # letting empty == empty pass. Compare bytes so a non-ASCII pasted key
     # degrades to a 401, not a TypeError 500.
@@ -145,6 +233,20 @@ def handler(event, _context):
             if db.delete_preference(path.split("/")[-1]):
                 return _resp(200, {"ok": True})
             return _resp(404, {"error": "unknown preference id"})
+
+        if method == "GET" and path == "/agent/chat":
+            return _resp(200, {"messages": db.get_chat("web")})
+
+        if method == "POST" and path == "/agent/chat":
+            if body.get("reset"):
+                db.clear_chat("web")
+                return _resp(200, {"ok": True, "messages": []})
+            message = (body.get("message") or "").strip()
+            if not message:
+                return _resp(400, {"error": "message is required"})
+            if len(message) > MAX_CHAT_CHARS:
+                return _resp(400, {"error": f"message is over {MAX_CHAT_CHARS} characters"})
+            return _resp(200, _agent_turn("web", message))
 
         if method == "POST" and path == "/debrief":
             answers = body.get("answers") or {}

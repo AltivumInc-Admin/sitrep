@@ -8,6 +8,7 @@ Table design (PK = USER#<id> for everything; SK discriminates entity type):
   USER#primary    SITREP#<yyyy-mm-dd>    The generated daily game plan
   USER#primary    DEBRIEF#<yyyy-mm-dd>   Evening debrief answers + analysis
   USER#primary    PREF#profile           Single doc: learned preferences list
+  USER#primary    CHAT#<channel>         Rolling agent conversation (web|telegram)
 
 Task item shape:
   {id, title, notes, project, status: open|done|dropped,
@@ -226,6 +227,54 @@ def append_preferences(new_prefs: list[dict]) -> None:
     prefs = _merge_preferences(get_preferences(), new_prefs, _now())
     _table().put_item(Item=_clean({"PK": _PK, "SK": "PREF#profile",
                                    "preferences": prefs, "updated_at": _now()}))
+
+
+# ---------- agent chat history ----------
+
+CHAT_CAP = 40  # messages kept per channel; the runtime replays fewer
+
+
+def cap_chat(messages: list[dict], cap: int = CHAT_CAP) -> list[dict]:
+    """Keep the newest messages, never splitting a user/assistant pair."""
+    kept = messages[-cap:]
+    if kept and kept[0].get("role") == "assistant":
+        kept = kept[1:]
+    return kept
+
+
+def get_chat(channel: str) -> list[dict]:
+    resp = _table().get_item(Key={"PK": _PK, "SK": f"CHAT#{channel}"})
+    return _out(resp.get("Item", {}).get("messages", []))
+
+
+def append_chat(channel: str, user_text: str, assistant_text: str) -> None:
+    now = _now()
+    messages = cap_chat(get_chat(channel) + [
+        {"role": "user", "text": user_text, "at": now},
+        {"role": "assistant", "text": assistant_text, "at": now},
+    ])
+    _table().update_item(
+        Key={"PK": _PK, "SK": f"CHAT#{channel}"},
+        UpdateExpression="SET messages = :m, updated_at = :t",
+        ExpressionAttributeValues={":m": _clean(messages), ":t": now},
+    )
+
+
+def clear_chat(channel: str) -> None:
+    _table().delete_item(Key={"PK": _PK, "SK": f"CHAT#{channel}"})
+
+
+def get_last_update_id(channel: str = "telegram") -> int:
+    resp = _table().get_item(Key={"PK": _PK, "SK": f"CHAT#{channel}"})
+    return int(resp.get("Item", {}).get("last_update_id", 0))
+
+
+def set_last_update_id(update_id: int, channel: str = "telegram") -> None:
+    _table().update_item(
+        Key={"PK": _PK, "SK": f"CHAT#{channel}"},
+        UpdateExpression="SET last_update_id = :u",
+        ExpressionAttributeValues={":u": int(update_id)},
+    )
 
 
 def preference_id(text: str) -> str:

@@ -74,11 +74,17 @@ export default function TasksView({ active }: { active: boolean }) {
   }
 
   // Views stay mounted across tab switches; refetch on activation so tasks
-  // closed elsewhere (debrief task_updates, another device) don't linger.
+  // closed elsewhere (debrief task_updates, the agent dock, another device)
+  // don't linger.
   useEffect(() => {
     if (active && !busy && leaving.size === 0) load()
+    const onData = () => {
+      if (active && !busy && leaving.size === 0) load()
+    }
+    window.addEventListener('sitrep-data-changed', onData)
+    return () => window.removeEventListener('sitrep-data-changed', onData)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active])
+  }, [active, busy, leaving])
 
   useEffect(() => {
     const timers = exitTimers.current

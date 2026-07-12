@@ -60,6 +60,18 @@ export interface AppliedTaskUpdate {
   title: string
 }
 
+export interface ChatMessage {
+  role: 'user' | 'assistant'
+  text: string
+  at?: string
+}
+
+export interface AgentTurn {
+  reply: string
+  tools_used: string[]
+  mutated: boolean
+}
+
 export const api = {
   dump: (text: string) => req('POST', '/dump', { text }),
   tasks: (status?: string) =>
@@ -79,4 +91,8 @@ export const api = {
       analysis: Record<string, unknown>
       applied_task_updates: AppliedTaskUpdate[]
     }>,
+  agentHistory: () => req('GET', '/agent/chat') as Promise<{ messages: ChatMessage[] }>,
+  agentChat: (message: string) =>
+    req('POST', '/agent/chat', { message }) as Promise<AgentTurn>,
+  agentReset: () => req('POST', '/agent/chat', { reset: true }),
 }

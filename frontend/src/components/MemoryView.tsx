@@ -24,6 +24,12 @@ export default function MemoryView({ active }: { active: boolean }) {
 
   useEffect(() => {
     if (active) load()
+    // The agent dock can change data while this tab is showing.
+    const onData = () => {
+      if (active) load()
+    }
+    window.addEventListener('sitrep-data-changed', onData)
+    return () => window.removeEventListener('sitrep-data-changed', onData)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active])
 

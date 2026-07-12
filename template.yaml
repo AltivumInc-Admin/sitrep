@@ -35,6 +35,20 @@ Parameters:
     Type: CommaDelimitedList
     Default: 'https://gameplan.altivum.ai,https://main.dpg1b347fl82l.amplifyapp.com,http://localhost:5173,http://localhost:4173'
     Description: Browser origins allowed by CORS (the Amplify app plus local dev servers).
+  TelegramBotToken:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: BotFather token for the Telegram channel. Empty disables Telegram entirely.
+  TelegramChatId:
+    Type: String
+    Default: ''
+    Description: Single allowed Telegram chat id (the owner). Empty means unclaimed; the webhook replies with the caller's chat id so the owner can claim it.
+  TelegramWebhookSecret:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: Secret token Telegram echoes in X-Telegram-Bot-Api-Secret-Token on webhook calls.
 
 Globals:
   Function:
@@ -86,17 +100,37 @@ Resources:
           - DELETE
           - OPTIONS
 
+  # Strands Agents SDK and its dependencies, vendored as a layer so the
+  # functions keep deploying straight from source with plain `sam deploy`.
+  # Populate backend/layer/python with scripts/build-agent-layer.sh first.
+  AgentDependenciesLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: gameplan-os-agent-deps
+      Description: Strands Agents SDK dependencies for the conversational agent (built by scripts/build-agent-layer.sh).
+      ContentUri: backend/layer/
+      CompatibleRuntimes:
+        - python3.13
+      RetentionPolicy: Delete
+
   ApiFunction:
     Type: AWS::Serverless::Function
     Properties:
-      Description: Game Plan OS REST API - tasks, on-demand plan generation, debrief loop.
+      Description: Game Plan OS REST API - tasks, on-demand plan generation, debrief loop, conversational agent.
       CodeUri: backend/src/
       Handler: handlers.api.handler
+      # The agent layer makes cold starts import-heavy; memory buys CPU.
+      MemorySize: 1024
+      Layers:
+        - !Ref AgentDependenciesLayer
       LoggingConfig:
         LogGroup: !Ref ApiFunctionLogs
       Environment:
         Variables:
           API_KEY: !Ref ApiKey
+          TELEGRAM_BOT_TOKEN: !Ref TelegramBotToken
+          TELEGRAM_CHAT_ID: !Ref TelegramChatId
+          TELEGRAM_WEBHOOK_SECRET: !Ref TelegramWebhookSecret
       Events:
         AnyRoute:
           Type: HttpApi
@@ -111,7 +145,11 @@ Resources:
             IdentityName: !Ref NotifyEmail
         - Statement:
             - Effect: Allow
-              Action: bedrock:InvokeModel
+              Action:
+                # The Strands agent may call ConverseStream, which needs the
+                # streaming action even when our own code path does not.
+                - bedrock:InvokeModel
+                - bedrock:InvokeModelWithResponseStream
               Resource:
                 - !Sub 'arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/${NovaProModelId}'
                 - !Sub 'arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/${NovaLiteModelId}'
@@ -130,6 +168,10 @@ Resources:
       CodeUri: backend/src/
       Handler: handlers.scheduled_sitrep.handler
       Timeout: 180
+      Environment:
+        Variables:
+          TELEGRAM_BOT_TOKEN: !Ref TelegramBotToken
+          TELEGRAM_CHAT_ID: !Ref TelegramChatId
       LoggingConfig:
         LogGroup: !Ref MorningBriefFunctionLogs
       EventInvokeConfig:

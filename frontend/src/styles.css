@@ -1385,3 +1385,184 @@ select.cell-input {
   .mission-statement { font-size: 1.35rem; }
   .radar { opacity: 0.25; }
 }
+
+/* ---------- agent dock ---------- */
+/* One doorway, bottom-right, above content but below nothing modal (there
+   are no modals). The pill is quiet chrome; the panel is a small console. */
+
+.dock-pill {
+  position: fixed;
+  right: 20px;
+  bottom: 52px;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  font: 600 0.78rem var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text);
+  background: var(--bg1);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  transition: border-color var(--dur-feedback) var(--ease-out),
+    transform var(--dur-feedback) var(--ease-out);
+}
+.dock-pill:hover {
+  border-color: var(--green);
+  transform: translateY(-1px);
+}
+
+.dock-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--block-glow);
+}
+
+.dock {
+  position: fixed;
+  right: 20px;
+  bottom: 52px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  width: min(400px, calc(100vw - 40px));
+  height: min(560px, calc(100vh - 120px));
+  background: var(--bg1);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  box-shadow: 0 14px 48px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.dock-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg2);
+}
+.dock-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: 600 0.78rem var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+.dock-sub {
+  display: block;
+  margin-top: 3px;
+  font: 400 0.78rem var(--sans);
+  color: var(--dim);
+}
+.dock-actions {
+  display: inline-flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.dock-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dock-empty {
+  margin: auto 0;
+  font: 400 0.85rem var(--sans);
+  line-height: 1.6;
+  color: var(--dim);
+}
+
+.dock-msg {
+  max-width: 88%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font: 400 0.85rem var(--sans);
+  line-height: 1.55;
+}
+.dock-msg p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+.dock-msg.user {
+  align-self: flex-end;
+  background: var(--green-soft);
+  border: 1px solid transparent;
+  color: var(--text);
+}
+.dock-msg.assistant {
+  align-self: flex-start;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  color: var(--text);
+}
+.dock-msg.failed {
+  border-color: var(--red-border);
+  background: var(--red-soft);
+}
+.dock-receipt {
+  display: block;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+  font: 500 0.68rem var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--green);
+}
+
+.dock-busy p {
+  color: var(--dim);
+  animation: dock-pulse 1.4s ease-in-out infinite;
+}
+@keyframes dock-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+.dock-form {
+  display: flex;
+  gap: 8px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--bg2);
+}
+.dock-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  font: 400 0.85rem var(--sans);
+  color: var(--text);
+  background: var(--bg0);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.dock-form input:focus {
+  outline: none;
+  border-color: var(--green);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dock-pill { transition: none; }
+  .dock-pill:hover { transform: none; }
+  .dock-busy p { animation: none; opacity: 0.75; }
+}
+
+@media (max-width: 640px) {
+  .dock-pill { bottom: 60px; }
+  .dock { bottom: 60px; }
+}

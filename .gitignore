@@ -1,6 +1,8 @@
 # SAM
 .aws-sam/
 samconfig.toml
+# Agent dependencies layer: built by scripts/build-agent-layer.sh, not committed.
+backend/layer/
 
 # Python
 __pycache__/

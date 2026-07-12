@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getKey, setKey } from './api'
+import AgentDock from './components/AgentDock'
 import Landing from './components/Landing'
 import ThemeToggle from './components/ThemeToggle'
 import SitrepView from './components/SitrepView'
@@ -97,6 +98,7 @@ export default function App() {
           <MemoryView active={tab === 'memory'} />
         </div>
       </main>
+      <AgentDock />
       <footer className="bottom">
         <span>
           Amazon Bedrock (Nova) &middot; Lambda &middot; DynamoDB &middot;

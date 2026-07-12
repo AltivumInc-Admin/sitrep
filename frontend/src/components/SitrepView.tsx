@@ -363,10 +363,16 @@ export default function SitrepView({
 
   // Views stay mounted across tab switches; refetch on activation so the
   // scheduled morning plan (or one generated elsewhere) is never stale here.
+  // The agent dock can also replan or mark blocks while this tab is showing.
   useEffect(() => {
     if (active && !busy) load()
+    const onData = () => {
+      if (active && !busy) load()
+    }
+    window.addEventListener('sitrep-data-changed', onData)
+    return () => window.removeEventListener('sitrep-data-changed', onData)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active])
+  }, [active, busy])
 
   useEffect(() => () => window.clearInterval(stageTimer.current), [])
 
