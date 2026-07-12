@@ -8,8 +8,9 @@ import SitrepView from './components/SitrepView'
 import TasksView from './components/TasksView'
 import DebriefView from './components/DebriefView'
 import MemoryView from './components/MemoryView'
+import ConnectionsView from './components/ConnectionsView'
 
-type Tab = 'brief' | 'tasks' | 'debrief' | 'memory'
+type Tab = 'brief' | 'tasks' | 'debrief' | 'memory' | 'connections'
 
 const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone
 
@@ -44,6 +45,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'tasks', label: 'Tasks' },
   { id: 'debrief', label: 'Debrief' },
   { id: 'memory', label: 'Memory' },
+  { id: 'connections', label: 'Connect' },
 ]
 
 export default function App() {
@@ -116,6 +118,12 @@ export default function App() {
         </div>
         <div className={tab === 'memory' ? 'view view-active' : 'view'} hidden={tab !== 'memory'}>
           <MemoryView active={tab === 'memory'} />
+        </div>
+        <div
+          className={tab === 'connections' ? 'view view-active' : 'view'}
+          hidden={tab !== 'connections'}
+        >
+          <ConnectionsView />
         </div>
       </main>
       <AgentDock />

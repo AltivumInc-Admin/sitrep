@@ -1591,3 +1591,157 @@ select.cell-input {
   text-underline-offset: 2px;
 }
 .linklike:hover { color: var(--green-hover); }
+
+/* ---------- connections ---------- */
+/* Rows, not cards: the console already speaks in rows (blocks, tasks,
+   memory), and a card grid here would be four boxes pretending to be
+   equals. The reason each integration exists is revealed on hover or
+   keyboard focus, and always shown where hover does not exist. */
+
+.conn-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+
+.conn-row {
+  border-bottom: 1px solid var(--line);
+}
+
+.conn-main {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  padding: 1.05rem 0.6rem;
+  background: none;
+  border: 0;
+  text-align: left;
+  color: var(--text);
+  cursor: default;
+  transition: background var(--dur-feedback) var(--ease-out);
+}
+.conn-row:hover .conn-main,
+.conn-main:focus-visible {
+  background: var(--row-hover);
+}
+.conn-main:focus-visible {
+  outline: 1px solid var(--green);
+  outline-offset: -1px;
+}
+
+.conn-mark svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+  fill: none;
+  stroke: var(--dim);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke var(--dur-state) var(--ease-out);
+}
+.conn-mark svg .mark-fill {
+  fill: var(--dim);
+  stroke: none;
+  transition: fill var(--dur-state) var(--ease-out);
+}
+.conn-row:hover .conn-mark svg,
+.conn-main:focus-visible .conn-mark svg {
+  stroke: var(--green);
+}
+.conn-row:hover .conn-mark svg .mark-fill,
+.conn-main:focus-visible .conn-mark svg .mark-fill {
+  fill: var(--green);
+}
+
+.conn-id {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  min-width: 0;
+}
+.conn-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.conn-kind {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+.conn-status {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--amber);
+  border: 1px solid var(--amber-soft);
+  background: var(--amber-soft);
+  padding: 0.28rem 0.6rem;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+/* grid-template-rows 0fr -> 1fr animates the reveal without touching
+   height/margin layout properties. */
+.conn-why-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-state) var(--ease-out);
+}
+.conn-row:hover .conn-why-wrap,
+.conn-row:focus-within .conn-why-wrap {
+  grid-template-rows: 1fr;
+}
+.conn-why {
+  overflow: hidden;
+}
+.conn-why p {
+  margin: 0;
+  padding: 0 0.6rem 1.1rem 3.6rem;
+  max-width: 68ch;
+  color: var(--dim);
+  font-size: 0.87rem;
+  line-height: 1.65;
+  opacity: 0;
+  transform: translateY(-3px);
+  transition: opacity var(--dur-state) var(--ease-out),
+    transform var(--dur-state) var(--ease-out);
+}
+.conn-row:hover .conn-why p,
+.conn-row:focus-within .conn-why p {
+  opacity: 1;
+  transform: none;
+}
+
+.conn-foot {
+  margin-top: 1.6rem;
+  max-width: 68ch;
+  color: var(--faint);
+  font-size: 0.82rem;
+}
+
+/* Without hover there is nothing to reveal: show every reason up front. */
+@media (hover: none) {
+  .conn-why-wrap { grid-template-rows: 1fr; }
+  .conn-why p { opacity: 1; transform: none; }
+  .conn-why p { padding-left: 0.6rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .conn-why-wrap { transition: none; }
+  .conn-why p { transition: none; }
+}
+
+@media (max-width: 560px) {
+  .conn-main { grid-template-columns: 26px 1fr; row-gap: 0.5rem; }
+  .conn-status { grid-column: 2; justify-self: start; }
+  .conn-why p { padding-left: 0.6rem; }
+}
