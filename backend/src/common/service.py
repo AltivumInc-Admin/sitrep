@@ -333,12 +333,12 @@ def render_email_text(body: dict) -> str:
     return "\n".join(lines)
 
 
-def send_sitrep_email(body: dict) -> None:
+def send_sitrep_email(body: dict, to: str | None = None) -> None:
     mission = " ".join((body.get("mission", {}).get("statement") or "").split())
     subject = f"Game Plan {body.get('date', '')} — {mission}"[:120]
     resp = _ses.send_email(
         Source=config.NOTIFY_EMAIL,
-        Destination={"ToAddresses": [config.NOTIFY_EMAIL]},
+        Destination={"ToAddresses": [to or config.NOTIFY_EMAIL]},
         Message={
             "Subject": {"Data": subject},
             "Body": {"Text": {"Data": render_email_text(body)}},

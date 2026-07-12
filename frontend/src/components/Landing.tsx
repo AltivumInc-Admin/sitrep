@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { api, setKey, type BlockStatus } from '../api'
-import { cognitoConfigured, completeNewPassword, signIn } from '../auth'
+import {
+  cognitoConfigured,
+  completeNewPassword,
+  confirmSignUp,
+  resendCode,
+  signIn,
+  signUp,
+} from '../auth'
 import ThemeToggle from './ThemeToggle'
 import { DayTimeline, ParaHead, type Sitrep } from './SitrepView'
 import heroLarge from '../assets/hero-dawn.jpg'
@@ -225,14 +232,18 @@ function DemoBrief() {
 
 // ---------------------------------------------------------------------------
 
+type GateMode = 'signin' | 'signup' | 'confirm' | 'newpass'
+
 function GateForm({ authed, onEnter }: { authed: boolean; onEnter: () => void }) {
+  const [mode, setMode] = useState<GateMode>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
-  // A non-empty challenge session means the invitation's temporary password
-  // was accepted and a permanent one must be chosen now.
+  const [code, setCode] = useState('')
+  // Session token for the legacy invited-account password challenge.
   const [challenge, setChallenge] = useState('')
   const [checking, setChecking] = useState(false)
+  const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
 
   if (authed) {
@@ -248,17 +259,18 @@ function GateForm({ authed, onEnter }: { authed: boolean; onEnter: () => void })
     )
   }
 
+  const switchMode = (m: GateMode) => {
+    setMode(m)
+    setError('')
+    setNotice('')
+  }
+
   const submit = async () => {
     if (checking) return
     setChecking(true)
     setError('')
+    setNotice('')
     try {
-      if (challenge) {
-        if (newPassword.length < 8) throw new Error('Pick a password of at least 8 characters.')
-        await completeNewPassword(email.trim(), newPassword, challenge)
-        onEnter()
-        return
-      }
       if (!cognitoConfigured()) {
         // Local dev without Cognito build vars: the password field takes the
         // service key directly.
@@ -267,18 +279,59 @@ function GateForm({ authed, onEnter }: { authed: boolean; onEnter: () => void })
         onEnter()
         return
       }
-      const outcome = await signIn(email.trim(), password)
-      if (outcome.ok) {
+      const address = email.trim()
+      if (mode === 'newpass') {
+        if (newPassword.length < 8) throw new Error('Pick a password of at least 8 characters.')
+        await completeNewPassword(address, newPassword, challenge)
         onEnter()
+      } else if (mode === 'signup') {
+        if (password.length < 8) throw new Error('Pick a password of at least 8 characters.')
+        const needsCode = await signUp(address, password)
+        if (needsCode) {
+          switchMode('confirm')
+          setNotice(`A confirmation code is on its way to ${address}.`)
+        } else {
+          await signIn(address, password)
+          onEnter()
+        }
+      } else if (mode === 'confirm') {
+        await confirmSignUp(address, code.trim())
+        const outcome = await signIn(address, password)
+        if (outcome.ok) onEnter()
       } else {
-        setChallenge(outcome.newPasswordSession)
+        const outcome = await signIn(address, password)
+        if (outcome.ok) {
+          onEnter()
+        } else {
+          setChallenge(outcome.newPasswordSession)
+          switchMode('newpass')
+        }
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e))
+      const message = e instanceof Error ? e.message : String(e)
+      if (mode === 'signin' && /not confirmed/i.test(message)) {
+        switchMode('confirm')
+        setNotice('Enter the confirmation code from your email to finish signing up.')
+      } else {
+        setError(message)
+      }
     } finally {
       setChecking(false)
     }
   }
+
+  const emailField = (
+    <input
+      type="email"
+      name="email"
+      id="email"
+      autoComplete="username"
+      value={email}
+      placeholder="email"
+      aria-label="Email"
+      onChange={(e) => setEmail(e.target.value)}
+    />
+  )
 
   return (
     <form
@@ -288,7 +341,7 @@ function GateForm({ authed, onEnter }: { authed: boolean; onEnter: () => void })
         submit()
       }}
     >
-      {challenge ? (
+      {mode === 'newpass' && (
         <>
           <div className="gate-fields">
             <input
@@ -310,45 +363,95 @@ function GateForm({ authed, onEnter }: { authed: boolean; onEnter: () => void })
             email with one of your own.
           </p>
         </>
-      ) : (
+      )}
+      {mode === 'confirm' && (
         <>
           <div className="gate-fields">
-            {cognitoConfigured() && (
+            {emailField}
+            <div className="key-row">
               <input
-                type="email"
-                name="email"
-                id="email"
-                autoComplete="username"
-                value={email}
-                placeholder="email"
-                aria-label="Email"
-                onChange={(e) => setEmail(e.target.value)}
+                type="text"
+                inputMode="numeric"
+                name="confirmation-code"
+                id="confirmation-code"
+                autoComplete="one-time-code"
+                value={code}
+                placeholder="confirmation code"
+                aria-label="Confirmation code"
+                onChange={(e) => setCode(e.target.value)}
               />
-            )}
+              <button className="primary" type="submit" disabled={checking}>
+                {checking ? 'Checking' : 'Confirm'}
+              </button>
+            </div>
+          </div>
+          <p className="key-hint">
+            Check your email for a six-digit code.{' '}
+            <button
+              type="button"
+              className="linklike"
+              onClick={async () => {
+                try {
+                  await resendCode(email.trim())
+                  setNotice('A fresh code is on its way.')
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : String(e))
+                }
+              }}
+            >
+              Resend it
+            </button>
+          </p>
+        </>
+      )}
+      {(mode === 'signin' || mode === 'signup') && (
+        <>
+          <div className="gate-fields">
+            {cognitoConfigured() && emailField}
             <div className="key-row">
               <input
                 type="password"
-                name="current-password"
-                id="current-password"
-                autoComplete="current-password"
+                name={mode === 'signup' ? 'new-password' : 'current-password'}
+                id="gate-password"
+                autoComplete={
+                  cognitoConfigured()
+                    ? mode === 'signup'
+                      ? 'new-password'
+                      : 'current-password'
+                    : 'current-password'
+                }
                 value={password}
                 placeholder={cognitoConfigured() ? 'password' : 'access key'}
                 aria-label={cognitoConfigured() ? 'Password' : 'Access key'}
                 onChange={(e) => setPassword(e.target.value)}
               />
               <button className="primary" type="submit" disabled={checking}>
-                {checking ? 'Checking' : 'Sign in'}
+                {checking ? 'Working' : mode === 'signup' ? 'Create account' : 'Sign in'}
               </button>
             </div>
           </div>
-          {error === '' && (
+          {cognitoConfigured() && (
             <p className="key-hint">
-              Owner sign-in. Accounts are created by invitation; nothing here
-              is shared infrastructure.
+              {mode === 'signup' ? (
+                <>
+                  Your plans, tasks, and debriefs are yours alone.{' '}
+                  <button type="button" className="linklike" onClick={() => switchMode('signin')}>
+                    Have an account? Sign in
+                  </button>
+                </>
+              ) : (
+                <>
+                  New here?{' '}
+                  <button type="button" className="linklike" onClick={() => switchMode('signup')}>
+                    Create an account
+                  </button>
+                </>
+              )}
             </p>
           )}
         </>
       )}
+      {notice && <p className="key-hint" role="status">{notice}</p>}
       {error && (
         <p className="error" role="alert">
           {error}
@@ -543,9 +646,10 @@ export default function Landing({
           <div className="radar" aria-hidden="true" />
           <ParaHead num="5" title="Command &amp; Signal" plain="take command" />
           <p className="land-lede">
-            Game Plan OS is single-tenant by design: it runs on your own AWS
-            account, and your tasks, plans, and debriefs never leave it. Sign
-            in as the owner, or deploy your own from the source.
+            Create an account and start with tomorrow morning's plan. Your
+            tasks, plans, and debriefs are partitioned to you alone &mdash;
+            and the whole system is open source if you would rather run your
+            own.
           </p>
           <GateForm authed={authed} onEnter={onEnter} />
           <p className="land-deploy">

@@ -49,6 +49,10 @@ Parameters:
     NoEcho: true
     Default: ''
     Description: Secret token Telegram echoes in X-Telegram-Bot-Api-Secret-Token on webhook calls.
+  OwnerUserId:
+    Type: String
+    Default: primary
+    Description: Data partition for the service key and unlinked channels. Set to the owner's Cognito sub once the owner account exists.
 
 Globals:
   Function:
@@ -61,20 +65,19 @@ Globals:
         NOTIFY_EMAIL: !Ref NotifyEmail
         NOVA_PRO_MODEL_ID: !Ref NovaProModelId
         NOVA_LITE_MODEL_ID: !Ref NovaLiteModelId
-        USER_ID: primary
+        USER_ID: !Ref OwnerUserId
+        COGNITO_POOL_ID: !Ref UserPool
         LOCAL_TZ: !Ref TimeZone
 
 Resources:
 
-  # Single-owner auth: self-signup disabled, the owner is invited by email.
-  # The SPA signs in with USER_PASSWORD_AUTH directly (no hosted UI) so the
-  # login screen keeps the app's own design.
+  # Multi-user auth: anyone can sign up with a verified email. The SPA signs
+  # in with USER_PASSWORD_AUTH directly (no hosted UI) so the auth screens
+  # keep the app's own design.
   UserPool:
     Type: AWS::Cognito::UserPool
     Properties:
       UserPoolName: gameplan-os-users
-      AdminCreateUserConfig:
-        AllowAdminCreateUserOnly: true
       UsernameAttributes:
         - email
       AutoVerifiedAttributes:
@@ -163,7 +166,6 @@ Resources:
       Environment:
         Variables:
           API_KEY: !Ref ApiKey
-          COGNITO_POOL_ID: !Ref UserPool
           COGNITO_CLIENT_ID: !Ref UserPoolClient
           TELEGRAM_BOT_TOKEN: !Ref TelegramBotToken
           TELEGRAM_CHAT_ID: !Ref TelegramChatId
@@ -233,6 +235,9 @@ Resources:
                 - !Sub 'arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/${NovaProModelId}'
                 - !Sub 'arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/${NovaLiteModelId}'
                 - !Sub 'arn:${AWS::Partition}:bedrock:*::foundation-model/amazon.nova-*'
+            - Effect: Allow
+              Action: cognito-idp:ListUsers
+              Resource: !GetAtt UserPool.Arn
 
   MorningBriefFunctionLogs:
     Type: AWS::Logs::LogGroup

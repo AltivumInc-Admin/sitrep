@@ -22,6 +22,7 @@ Boundary contract: writes coerce floats to Decimal (_clean); reads strip the
 key attributes and coerce Decimal back to int/float (_out), so callers never
 see DynamoDB types.
 """
+import contextvars
 import datetime
 import decimal
 import hashlib
@@ -34,8 +35,26 @@ from boto3.dynamodb.conditions import Attr, Key
 from common import config
 
 TASK_STATUSES = {"open", "done", "dropped"}
-_PK = f"USER#{config.USER_ID}"
+
+# Multi-user: the API sets the signed-in user's id per request; anything that
+# never sets it (the service key, the scheduler's default path, unlinked
+# channels) operates as the owner (config.USER_ID). Execution environments
+# are reused across invocations, so the API must set this on EVERY request.
+_request_user: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "request_user", default=None)
 _table_handle = None
+
+
+def set_request_user(user_id: str | None) -> None:
+    _request_user.set(user_id)
+
+
+def current_user() -> str:
+    return _request_user.get() or config.USER_ID
+
+
+def _pk() -> str:
+    return f"USER#{current_user()}"
 
 
 def _table():
@@ -89,14 +108,14 @@ def put_task(task: dict) -> dict:
     task.setdefault("id", uuid.uuid4().hex[:12])
     task.setdefault("status", "open")
     task.setdefault("created_at", _now())
-    item = _clean({"PK": _PK, "SK": f"TASK#{task['id']}", **task})
+    item = _clean({"PK": _pk(), "SK": f"TASK#{task['id']}", **task})
     _table().put_item(Item=item)
     return task
 
 
 def list_tasks(status: str | None = None) -> list[dict]:
     kwargs: dict[str, Any] = dict(
-        KeyConditionExpression=Key("PK").eq(_PK) & Key("SK").begins_with("TASK#"))
+        KeyConditionExpression=Key("PK").eq(_pk()) & Key("SK").begins_with("TASK#"))
     if status:
         kwargs["FilterExpression"] = Attr("status").eq(status)
     items = [_out(i) for i in _query_all(**kwargs)]
@@ -117,7 +136,7 @@ def update_task(task_id: str, fields: dict) -> None:
     # attribute_exists stops UpdateItem from upserting phantom items for
     # unknown ids (the model occasionally invents task ids).
     _table().update_item(
-        Key={"PK": _PK, "SK": f"TASK#{task_id}"},
+        Key={"PK": _pk(), "SK": f"TASK#{task_id}"},
         UpdateExpression=f"SET {expr}",
         ConditionExpression="attribute_exists(PK)",
         ExpressionAttributeNames=names,
@@ -131,7 +150,7 @@ def put_sitrep(date: str, body: dict, *, block_status: dict | None = None,
                revision: int = 0, replanned_at: str | None = None) -> None:
     """Store the day's plan. A fresh generate resets block_status and
     revision; a replan passes carried-over values explicitly."""
-    item = {"PK": _PK, "SK": f"SITREP#{date}", "date": date,
+    item = {"PK": _pk(), "SK": f"SITREP#{date}", "date": date,
             "body": body, "created_at": _now(),
             "block_status": block_status or {}, "revision": revision}
     if replanned_at:
@@ -140,14 +159,14 @@ def put_sitrep(date: str, body: dict, *, block_status: dict | None = None,
 
 
 def get_sitrep(date: str) -> dict | None:
-    resp = _table().get_item(Key={"PK": _PK, "SK": f"SITREP#{date}"})
+    resp = _table().get_item(Key={"PK": _pk(), "SK": f"SITREP#{date}"})
     item = resp.get("Item")
     return _out(item) if item else None
 
 
 def latest_sitrep() -> dict | None:
     resp = _table().query(
-        KeyConditionExpression=Key("PK").eq(_PK) & Key("SK").begins_with("SITREP#"),
+        KeyConditionExpression=Key("PK").eq(_pk()) & Key("SK").begins_with("SITREP#"),
         ScanIndexForward=False, Limit=1)
     items = resp.get("Items", [])
     return _out(items[0]) if items else None
@@ -178,7 +197,7 @@ def set_block_status(date: str, index: Any, status: str | None) -> dict:
     else:
         statuses[str(index)] = status
     _table().update_item(
-        Key={"PK": _PK, "SK": f"SITREP#{date}"},
+        Key={"PK": _pk(), "SK": f"SITREP#{date}"},
         UpdateExpression="SET block_status = :s",
         ConditionExpression="attribute_exists(PK)",
         ExpressionAttributeValues={":s": _clean(statuses)},
@@ -189,14 +208,14 @@ def set_block_status(date: str, index: Any, status: str | None) -> dict:
 # ---------- debriefs ----------
 
 def put_debrief(date: str, answers: dict, analysis: dict) -> None:
-    _table().put_item(Item=_clean({"PK": _PK, "SK": f"DEBRIEF#{date}", "date": date,
+    _table().put_item(Item=_clean({"PK": _pk(), "SK": f"DEBRIEF#{date}", "date": date,
                                    "answers": answers, "analysis": analysis,
                                    "created_at": _now()}))
 
 
 def recent_debriefs(limit: int = 5) -> list[dict]:
     resp = _table().query(
-        KeyConditionExpression=Key("PK").eq(_PK) & Key("SK").begins_with("DEBRIEF#"),
+        KeyConditionExpression=Key("PK").eq(_pk()) & Key("SK").begins_with("DEBRIEF#"),
         ScanIndexForward=False, Limit=limit)
     return [_out(i) for i in resp.get("Items", [])]
 
@@ -204,7 +223,7 @@ def recent_debriefs(limit: int = 5) -> list[dict]:
 # ---------- preferences ----------
 
 def get_preferences() -> list[dict]:
-    resp = _table().get_item(Key={"PK": _PK, "SK": "PREF#profile"})
+    resp = _table().get_item(Key={"PK": _pk(), "SK": "PREF#profile"})
     return _out(resp.get("Item", {}).get("preferences", []))
 
 
@@ -225,7 +244,7 @@ def _merge_preferences(existing: list[dict], new: list[dict], now: str,
 
 def append_preferences(new_prefs: list[dict]) -> None:
     prefs = _merge_preferences(get_preferences(), new_prefs, _now())
-    _table().put_item(Item=_clean({"PK": _PK, "SK": "PREF#profile",
+    _table().put_item(Item=_clean({"PK": _pk(), "SK": "PREF#profile",
                                    "preferences": prefs, "updated_at": _now()}))
 
 
@@ -243,7 +262,7 @@ def cap_chat(messages: list[dict], cap: int = CHAT_CAP) -> list[dict]:
 
 
 def get_chat(channel: str) -> list[dict]:
-    resp = _table().get_item(Key={"PK": _PK, "SK": f"CHAT#{channel}"})
+    resp = _table().get_item(Key={"PK": _pk(), "SK": f"CHAT#{channel}"})
     return _out(resp.get("Item", {}).get("messages", []))
 
 
@@ -254,24 +273,24 @@ def append_chat(channel: str, user_text: str, assistant_text: str) -> None:
         {"role": "assistant", "text": assistant_text, "at": now},
     ])
     _table().update_item(
-        Key={"PK": _PK, "SK": f"CHAT#{channel}"},
+        Key={"PK": _pk(), "SK": f"CHAT#{channel}"},
         UpdateExpression="SET messages = :m, updated_at = :t",
         ExpressionAttributeValues={":m": _clean(messages), ":t": now},
     )
 
 
 def clear_chat(channel: str) -> None:
-    _table().delete_item(Key={"PK": _PK, "SK": f"CHAT#{channel}"})
+    _table().delete_item(Key={"PK": _pk(), "SK": f"CHAT#{channel}"})
 
 
 def get_last_update_id(channel: str = "telegram") -> int:
-    resp = _table().get_item(Key={"PK": _PK, "SK": f"CHAT#{channel}"})
+    resp = _table().get_item(Key={"PK": _pk(), "SK": f"CHAT#{channel}"})
     return int(resp.get("Item", {}).get("last_update_id", 0))
 
 
 def set_last_update_id(update_id: int, channel: str = "telegram") -> None:
     _table().update_item(
-        Key={"PK": _PK, "SK": f"CHAT#{channel}"},
+        Key={"PK": _pk(), "SK": f"CHAT#{channel}"},
         UpdateExpression="SET last_update_id = :u",
         ExpressionAttributeValues={":u": int(update_id)},
     )
@@ -288,6 +307,6 @@ def delete_preference(pref_id: str) -> bool:
     kept = [p for p in prefs if preference_id(p.get("text", "")) != pref_id]
     if len(kept) == len(prefs):
         return False
-    _table().put_item(Item=_clean({"PK": _PK, "SK": "PREF#profile",
+    _table().put_item(Item=_clean({"PK": _pk(), "SK": "PREF#profile",
                                    "preferences": kept, "updated_at": _now()}))
     return True

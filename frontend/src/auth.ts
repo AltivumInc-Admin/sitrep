@@ -49,14 +49,18 @@ async function cognito(target: string, body: unknown): Promise<Record<string, un
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown>
   if (!res.ok) {
     const type = String(data.__type ?? '').split('#').pop()
-    const message = String(data.message ?? type ?? 'sign in failed')
-    throw new Error(
-      type === 'NotAuthorizedException' || type === 'UserNotFoundException'
-        ? 'Email or password not recognized.'
-        : type === 'PasswordResetRequiredException'
-          ? 'A password reset is required for this account.'
-          : message,
-    )
+    const friendly: Record<string, string> = {
+      NotAuthorizedException: 'Email or password not recognized.',
+      UserNotFoundException: 'Email or password not recognized.',
+      PasswordResetRequiredException: 'A password reset is required for this account.',
+      UsernameExistsException: 'An account with this email already exists. Sign in instead.',
+      InvalidPasswordException: 'Pick a stronger password: at least 8 characters with upper and lower case, a number, and a symbol.',
+      CodeMismatchException: 'That code does not match. Check the email and try again.',
+      ExpiredCodeException: 'That code expired. Request a new one.',
+      UserNotConfirmedException: 'This account is not confirmed yet. Enter the code from your email.',
+      LimitExceededException: 'Too many attempts. Wait a few minutes and try again.',
+    }
+    throw new Error(friendly[type ?? ''] ?? String(data.message ?? type ?? 'sign in failed'))
   }
   return data
 }
@@ -105,6 +109,29 @@ export async function completeNewPassword(
     ChallengeResponses: { USERNAME: email, NEW_PASSWORD: newPassword },
   })
   adopt(email, data.AuthenticationResult as unknown as AuthResult)
+}
+
+// Returns true when the account still needs the emailed confirmation code.
+export async function signUp(email: string, password: string): Promise<boolean> {
+  const data = await cognito('SignUp', {
+    ClientId: CLIENT_ID,
+    Username: email,
+    Password: password,
+    UserAttributes: [{ Name: 'email', Value: email }],
+  })
+  return !(data.UserConfirmed as boolean)
+}
+
+export async function confirmSignUp(email: string, code: string): Promise<void> {
+  await cognito('ConfirmSignUp', {
+    ClientId: CLIENT_ID,
+    Username: email,
+    ConfirmationCode: code,
+  })
+}
+
+export async function resendCode(email: string): Promise<void> {
+  await cognito('ResendConfirmationCode', { ClientId: CLIENT_ID, Username: email })
 }
 
 export async function refreshSession(): Promise<boolean> {

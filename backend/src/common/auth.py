@@ -41,10 +41,11 @@ def check_claims(claims: dict, client_id: str) -> bool:
             and claims.get("client_id") == client_id)
 
 
-def verify_bearer(token: str) -> bool:
-    """True only for a valid, unexpired access token from our user pool."""
+def verify_bearer(token: str) -> dict | None:
+    """The verified claims of a valid, unexpired access token from our user
+    pool (the caller wants claims["sub"]), or None."""
     if not (config.COGNITO_POOL_ID and config.COGNITO_CLIENT_ID and token):
-        return False
+        return None
     import jwt
     from jwt.algorithms import RSAAlgorithm
     try:
@@ -55,11 +56,13 @@ def verify_bearer(token: str) -> bool:
             _jwks_cache["keys"] = None
             key = next((k for k in _jwks()["keys"] if k["kid"] == header.get("kid")), None)
             if key is None:
-                return False
+                return None
         public_key = RSAAlgorithm.from_jwk(json.dumps(key))
         claims = jwt.decode(
             token, public_key, algorithms=["RS256"], issuer=_issuer(),
             options={"verify_aud": False})  # access tokens carry client_id, not aud
-        return check_claims(claims, config.COGNITO_CLIENT_ID)
+        if not check_claims(claims, config.COGNITO_CLIENT_ID):
+            return None
+        return claims if claims.get("sub") else None
     except Exception:
-        return False
+        return None

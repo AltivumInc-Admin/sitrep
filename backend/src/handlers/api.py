@@ -41,21 +41,25 @@ TELEGRAM_WELCOME = (
     "\"what's my plan\" any time. Send /reset to start a fresh conversation.")
 
 
-def _authorized(headers: dict) -> bool:
-    """Two accepted credentials: a Cognito access token (the console after
-    sign-in) or the static service key (scripts, smoke tests)."""
+def _resolve_user(headers: dict) -> str | None:
+    """Who is calling: the signed-in user's Cognito sub (Bearer token), the
+    owner (service key), or nobody. Every piece of data is partitioned by
+    this identity."""
     bearer = headers.get("authorization", "")
     if bearer.lower().startswith("bearer "):
         # Lazy import: PyJWT lives in the dependencies layer.
         from common import auth
-        if auth.verify_bearer(bearer[7:].strip()):
-            return True
+        claims = auth.verify_bearer(bearer[7:].strip())
+        if claims:
+            return str(claims["sub"])
     # Empty API_KEY means misconfiguration; deny rather than letting
     # empty == empty pass. Compare bytes so a non-ASCII pasted key degrades
     # to a 401, not a TypeError 500.
     supplied = headers.get("x-sitrep-key", "").encode("utf-8", "surrogatepass")
-    return bool(config.API_KEY) and hmac.compare_digest(
-        supplied, config.API_KEY.encode("utf-8"))
+    if bool(config.API_KEY) and hmac.compare_digest(
+            supplied, config.API_KEY.encode("utf-8")):
+        return config.USER_ID
+    return None
 
 
 def _agent_turn(channel: str, message: str) -> dict:
@@ -160,14 +164,19 @@ def handler(event, _context):
 
     headers = {k.lower(): v for k, v in (event.get("headers") or {}).items()}
     # Telegram authenticates with its own webhook secret, not the API key.
+    # Until per-user linking ships, the channel belongs to the owner.
     if method == "POST" and path == "/agent/telegram":
+        db.set_request_user(config.USER_ID)
         try:
             return _telegram_webhook(headers, event)
         except Exception as exc:
             traceback.print_exc()
             return _resp(500, {"error": str(exc)})
-    if not _authorized(headers):
+    user_id = _resolve_user(headers)
+    if user_id is None:
         return _resp(401, {"error": "sign in required (or provide a valid x-sitrep-key)"})
+    # Execution environments are reused: set the partition on every request.
+    db.set_request_user(user_id)
 
     body = {}
     if event.get("body"):

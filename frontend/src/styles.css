@@ -1578,3 +1578,16 @@ select.cell-input {
   .dock-pill { bottom: 60px; }
   .dock { bottom: 60px; }
 }
+
+/* Inline text-button (mode switches inside the gate hint line). */
+.linklike {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--green);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.linklike:hover { color: var(--green-hover); }
