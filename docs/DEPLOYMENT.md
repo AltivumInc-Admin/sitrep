@@ -61,17 +61,19 @@ The stack also creates an SNS topic subscribed to NotifyEmail for the
 morning-plan failure alarm — **confirm the SNS subscription email** when it
 arrives, or alarm notifications will not be delivered.
 
-Then create the owner account (self-signup is disabled; the console's
-sign-in is Cognito, while the ApiKey remains a service key for scripts):
+Auth is multi-user: anyone can create an account on the site (email +
+confirmation code), and every account's data lives in its own partition.
+The ApiKey remains a service key for scripts and maps to the owner's
+partition. After your own first sign-up, set the `OwnerUserId` parameter to
+your account's Cognito sub on the next deploy so the service key, the
+Telegram channel, and scheduler defaults point at your data:
 
 ```bash
-aws cognito-idp admin-create-user --user-pool-id <UserPoolId> \
-  --username you@example.com \
-  --user-attributes Name=email,Value=you@example.com Name=email_verified,Value=true
+aws cognito-idp list-users --user-pool-id <UserPoolId> \
+  --query "Users[?Attributes[?Name=='email' && Value=='you@example.com']].Attributes" \
+  --output table
+sam deploy --parameter-overrides OwnerUserId=<your-sub>
 ```
-
-Cognito emails a temporary password; the first sign-in on the site asks you
-to replace it.
 
 ## 4. Smoke test (5 minutes, catches 90% of problems)
 
